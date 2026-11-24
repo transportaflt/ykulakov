@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Мои расходы — дашборд</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 24px;
+  }
+  h1 { font-size: 24px; margin-bottom: 20px; font-weight: 600; }
+  h1 span { color: #38bdf8; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 20px;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+
+  .card {
+    background: #1e293b;
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid #334155;
+  }
+
+  label { display: block; font-size: 13px; color: #94a3b8; margin: 12px 0 6px; }
+  input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 14px;
+    outline: none;
+  }
+  input:focus { border-color: #38bdf8; }
+  button.primary {
+    width: 100%;
+    margin-top: 18px;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #0ea5e9, #2563eb);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .2s;
+  }
+  button.primary:hover { opacity: .9; }
+
+  /* Переключатель режима */
+  .mode-toggle {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    margin-bottom: 6px;
+  }
+  .mode-toggle button {
+    flex: 1;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .mode-toggle button.active {
+    background: linear-gradient(135deg, #0ea5e9, #2563eb);
+    color: #fff;
+  }
+
+  /* Кнопки категорий (одиночный режим) */
+  .cat-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .cat-btn {
+    padding: 8px 14px;
+    border-radius: 20px;
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: #cbd5e1;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .cat-btn:hover { border-color: #38bdf8; color: #e2e8f0; }
+  .cat-btn.active {
+    background: linear-gradient(135deg, #0ea5e9, #2563eb);
+    border-color: transparent;
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 4px 12px #0ea5e955;
+  }
+  .cat-btn .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #38bdf8;
+  }
+  .cat-btn.active .dot { background: #fff; }
+
+  /* Мультивыбор — строки «категория + сумма» */
+  .multi-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .multi-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    transition: border-color .15s;
+  }
+  .multi-row.checked { border-color: #38bdf8; }
+  .multi-row .chk {
+    width: 18px; height: 18px; border-radius: 6px;
+    border: 2px solid #475569; background: #0f172a;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0;
+    color: transparent; font-size: 11px;
+    transition: all .15s;
+  }
+  .multi-row.checked .chk {
+    background: #0ea5e9; border-color: #0ea5e9; color: #fff;
+  }
+  .multi-row .cat-label {
+    flex: 1;
+    font-size: 13px;
+    color: #cbd5e1;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .multi-row.checked .cat-label { color: #e2e8f0; font-weight: 500; }
+  .multi-row .amt {
+    width: 100px;
+    padding: 6px 8px;
+    font-size: 13px;
+    text-align: right;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+  }
+  .multi-row .amt:focus { border-color: #38bdf8; }
+  .multi-row .unit { font-size: 12px; color: #64748b; }
+
+  .multi-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    font-size: 13px;
+  }
+  .multi-total b { color: #38bdf8; font-size: 16px; }
+
+  .totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+  .total-box {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .total-box .label { font-size: 12px; color: #94a3b8; margin-bottom: 6px; }
+  .total-box .value { font-size: 22px; font-weight: 700; color: #38bdf8; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; color: #94a3b8; font-weight: 500; font-size: 12px; padding: 8px 6px; border-bottom: 1px solid #334155; }
+  td { padding: 10px 6px; border-bottom: 1px solid #1e293b; }
+  tr:hover td { background: #243447; }
+  .amount { font-weight: 600; white-space: nowrap; }
+  .del {
+    background: none; border: none; color: #f87171; cursor: pointer;
+    font-size: 16px; padding: 2px 6px; border-radius: 6px;
+  }
+  .del:hover { background: #7f1d1d33; }
+  .empty { text-align: center; color: #64748b; padding: 24px 0; font-size: 14px; }
+
+  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+  @media (max-width: 860px) { .charts { grid-template-columns: 1fr; } }
+  .chart-card h3 { font-size: 14px; color: #94a3b8; font-weight: 500; margin-bottom: 12px; }
+  .chart-wrap { position: relative; height: 240px; }
+  .scroll { max-height: 380px; overflow-y: auto; }
+
+  .cat-badge {
+    display: inline-block; padding: 2px 10px; border-radius: 20px;
+    font-size: 12px; background: #334155; color: #cbd5e1;
+  }
+  .filters { display: flex; gap: 10px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+  .filters select { width: auto; padding: 7px 10px; font-size: 13px;
+    border-radius: 10px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; outline: none; }
+  .filters .spacer { flex: 1; }
+
+  /* Менеджер категорий */
+  .cat-manager { margin-top: 18px; border-top: 1px solid #334155; padding-top: 14px; }
+  .cat-manager-head {
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; user-select: none; font-size: 14px; color: #94a3b8;
+  }
+  .cat-manager-head:hover { color: #e2e8f0; }
+  .cat-manager-head .arrow { transition: transform .2s; font-size: 12px; }
+  .cat-manager.open .cat-manager-head .arrow { transform: rotate(90deg); }
+  .cat-list { display: none; margin-top: 10px; }
+  .cat-manager.open .cat-list { display: block; }
+
+  .cat-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 0; border-bottom: 1px solid #33415555;
+  }
+  .cat-row:last-child { border-bottom: none; }
+  .cat-row input.cat-name {
+    flex: 1; padding: 6px 8px; font-size: 13px;
+    background: #0f172a; border: 1px solid transparent; border-radius: 8px;
+  }
+  .cat-row input.cat-name:hover { border-color: #334155; }
+  .cat-row input.cat-name:focus { border-color: #38bdf8; }
+  .cat-row .ico-btn {
+    background: none; border: none; cursor: pointer;
+    font-size: 14px; padding: 4px 6px; border-radius: 6px; color: #94a3b8;
+  }
+  .cat-row .ico-btn:hover { background: #334155; color: #e2e8f0; }
+  .cat-row .ico-btn.save { color: #38bdf8; display: none; }
+  .cat-row.changed .ico-btn.save { display: inline-block; }
+  .cat-row .count { font-size: 11px; color: #64748b; min-width: 26px; text-align: right; }
+
+  .add-cat-row { display: flex; gap: 6px; margin-top: 10px; }
+  .add-cat-row input { flex: 1; padding: 7px 10px; font-size: 13px; }
+  .add-cat-row button {
+    padding: 7px 12px; border: none; border-radius: 8px;
+    background: #2563eb; color: #fff; font-size: 13px; cursor: pointer;
+  }
+  .add-cat-row button:hover { background: #1d4ed8; }
+
+  /* Панель экспорт/импорт */
+  .io-panel {
+    max-width: 1280px;
+    margin: 24px auto 0;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 16px;
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .io-panel .title { font-size: 14px; color: #94a3b8; margin-right: auto; }
+  .io-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .io-btn:hover { border-color: #38bdf8; color: #38bdf8; }
+  .io-btn.excel {
+    background: linear-gradient(135deg, #15803d, #16a34a);
+    border-color: transparent; color: #fff;
+  }
+  .io-btn.excel:hover { opacity: .9; color: #fff; }
+  .io-btn.import { color: #38bdf8; border-color: #38bdf855; }
+  .io-btn.import:hover { background: #38bdf815; }
+  .io-btn .ico { font-size: 16px; }
+</style>
+</head>
+<body>
+
+<h1>💰 Мои <span>расходы</span></h1>
+
+<div class="layout">
+  <!-- ЛЕВАЯ КОЛОНКА: ФОРМА + КАТЕГОРИИ -->
+  <div class="card">
+    <h3 style="font-size:16px;">Добавить расход</h3>
+
+    <!-- Переключатель режима -->
+    <div class="mode-toggle">
+      <button type="button" id="modeSingle" class="active" onclick="setMode('single')">Одна категория</button>
+      <button type="button" id="modeMulti" onclick="setMode('multi')">Мультивыбор</button>
+    </div>
+
+    <form id="expenseForm">
+      <!-- Режим 1: одиночная категория -->
+      <div id="singleMode">
+        <label>Сумма (₽)</label>
+        <input type="number" id="amount" min="0.01" step="0.01" placeholder="1000">
+
+        <label>Категория</label>
+        <div class="cat-buttons" id="catButtons"></div>
+        <input type="hidden" id="category">
+      </div>
+
+      <!-- Режим 2: несколько категорий с суммами -->
+      <div id="multiMode" style="display:none;">
+        <label>Отметьте категории и укажите суммы</label>
+        <div class="multi-list" id="multiList"></div>
+        <div class="multi-total">
+          <span>Итого к добавлению:</span>
+          <b id="multiTotal">0 ₽</b>
+        </div>
+      </div>
+
+      <label>Дата</label>
+      <input type="date" id="date" required>
+
+      <label>Комментарий (общий для всех)</label>
+      <input type="text" id="note" placeholder="Например: продукты на неделю">
+
+      <button type="submit" class="primary">Добавить расход</button>
+    </form>
+
+    <!-- МЕНЕДЖЕР КАТЕГОРИЙ -->
+    <div class="cat-manager" id="catManager">
+      <div class="cat-manager-head" onclick="document.getElementById('catManager').classList.toggle('open')">
+        <span>⚙️ Управление категориями</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="cat-list" id="catList"></div>
+      <div class="add-cat-row">
+        <input type="text" id="newCatName" placeholder="Новая категория..." maxlength="40">
+        <button type="button" id="addCatBtn">Добавить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ПРАВАЯ КОЛОНКА: ДАННЫЕ -->
+  <div>
+    <div class="totals">
+      <div class="total-box">
+        <div class="label">Расходы за текущий месяц</div>
+        <div class="value" id="monthTotal">0 ₽</div>
+      </div>
+      <div class="total-box">
+        <div class="label">Сегодня</div>
+        <div class="value" id="todayTotal">0 ₽</div>
+      </div>
+      <div class="total-box">
+        <div class="label">Всего записей</div>
+        <div class="value" id="countTotal">0</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="filters">
+        <h3 style="font-size:16px;">История</h3>
+        <div class="spacer"></div>
+        <select id="filterCat"><option value="">Все категории</option></select>
+        <select id="filterMonth"></select>
+      </div>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr><th>Дата</th><th>Категория</th><th>Комментарий</th><th style="text-align:right;">Сумма</th><th></th></tr>
+          </thead>
+          <tbody id="list"></tbody>
+        </table>
+        <div class="empty" id="emptyMsg" style="display:none;">Записей пока нет. Добавьте первый расход слева.</div>
+      </div>
+    </div>
+
+    <div class="charts">
+      <div class="card chart-card">
+        <h3>Расходы по категориям (за всё время)</h3>
+        <div class="chart-wrap"><canvas id="pieChart"></canvas></div>
+      </div>
+      <div class="card chart-card">
+        <h3>Динамика по месяцам</h3>
+        <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ПАНЕЛЬ ЭКСПОРТА / ИМПОРТА -->
+<div class="io-panel">
+  <div class="title">💾 Данные</div>
+  <button class="io-btn excel" id="btnExcel"><span class="ico">📊</span> Выгрузить в Excel</button>
+  <button class="io-btn" id="btnExport"><span class="ico">⬇️</span> Экспорт TXT</button>
+  <button class="io-btn import" id="btnImport"><span class="ico">⬆️</span> Импорт TXT</button>
+  <input type="file" id="importFile" accept=".txt,text/plain" style="display:none;">
+</div>
+
+<script>
+const EXPENSES_KEY = 'expenses_dashboard_v1';
+const CATS_KEY = 'expenses_categories_v1';
+const DEFAULT_CATS = ['Продукты','Жильё и ЖКХ','Транспорт','Кафе и рестораны','Здоровье',
+  'Одежда','Развлечения','Подписки и связь','Образование','Прочее'];
+
+let expenses = JSON.parse(localStorage.getItem(EXPENSES_KEY) || '[]');
+let categories = JSON.parse(localStorage.getItem(CATS_KEY) || 'null') || [...DEFAULT_CATS];
+let selectedCategory = categories[0] || '';
+let entryMode = 'single'; // 'single' | 'multi'
+let multiState = {};      // { [category]: { checked: bool, amount: string } }
+let pieChart, barChart;
+
+const fmt = n => new Intl.NumberFormat('ru-RU', {maximumFractionDigits: 2}).format(n) + ' ₽';
+const monthKey = d => d.slice(0, 7);
+const monthName = key => {
+  const [y, m] = key.split('-');
+  return new Date(y, m - 1).toLocaleString('ru-RU', {month: 'short', year: 'numeric'});
+};
+
+function saveExpenses() { localStorage.setItem(EXPENSES_KEY, JSON.stringify(expenses)); }
+function saveCats()     { localStorage.setItem(CATS_KEY, JSON.stringify(categories)); }
+
+// ---------- Инициализация ----------
+document.getElementById('date').value = new Date().toISOString().slice(0, 10);
+
+function populateFilterSelect() {
+  const fCat = document.getElementById('filterCat');
+  const prevF = fCat.value;
+  fCat.innerHTML = '<option value="">Все категории</option>' +
+    categories.map(c => `<option>${escapeHtml(c)}</option>`).join('');
+  if (categories.includes(prevF)) fCat.value = prevF;
+}
+
+function refreshMonthOptions() {
+  const ms = [...new Set(expenses.map(e => monthKey(e.date)))].sort().reverse();
+  const filterMonth = document.getElementById('filterMonth');
+  const cur = filterMonth.value;
+  filterMonth.innerHTML = '<option value="">Все месяцы</option>' +
+    ms.map(m => `<option value="${m}">${monthName(m)}</option>`).join('');
+  if (ms.includes(cur)) filterMonth.value = cur;
+}
+
+// ---------- Переключение режима ----------
+function setMode(mode) {
+  entryMode = mode;
+  document.getElementById('modeSingle').classList.toggle('active', mode === 'single');
+  document.getElementById('modeMulti').classList.toggle('active', mode === 'multi');
+  document.getElementById('singleMode').style.display = mode === 'single' ? 'block' : 'none';
+  document.getElementById('multiMode').style.display = mode === 'multi' ? 'block' : 'none';
+  if (mode === 'multi') renderMultiList();
+}
+
+// ---------- Одиночный режим ----------
+function renderCatButtons() {
+  if (!categories.includes(selectedCategory)) selectedCategory = categories[0] || '';
+
+  const wrap = document.getElementById('catButtons');
+  if (!categories.length) {
+    wrap.innerHTML = '<div style="color:#64748b;font-size:13px;">Нет категорий. Добавьте в менеджере ниже.</div>';
+    document.getElementById('category').value = '';
+    return;
+  }
+  wrap.innerHTML = categories.map(c => `
+    <button type="button" class="cat-btn ${c === selectedCategory ? 'active' : ''}"
+            onclick="selectCategory('${escapeAttr(c)}')">
+      <span class="dot"></span>${escapeHtml(c)}
+    </button>`).join('');
+  document.getElementById('category').value = selectedCategory;
+}
+
+function selectCategory(name) {
+  selectedCategory = name;
+  document.getElementById('category').value = name;
+  document.querySelectorAll('.cat-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.trim() === name);
+  });
+  renderCatButtons();
+}
+
+// ---------- Мультивыбор ----------
+function syncMultiState() {
+  // чистим исчезнувшие категории
+  Object.keys(multiState).forEach(c => { if (!categories.includes(c)) delete multiState[c]; });
+  // добавляем новые
+  categories.forEach(c => {
+    if (!multiState[c]) multiState[c] = { checked: false, amount: '' };
+  });
+}
+
+function renderMultiList() {
+  syncMultiState();
+  const list = document.getElementById('multiList');
+
+  if (!categories.length) {
+    list.innerHTML = '<div style="color:#64748b;font-size:13px;">Нет категорий. Добавьте в менеджере ниже.</div>';
+    document.getElementById('multiTotal').textContent = '0 ₽';
+    return;
+  }
+
+  list.innerHTML = categories.map(c => {
+    const st = multiState[c];
+    return `
+      <div class="multi-row ${st.checked ? 'checked' : ''}" data-cat="${escapeHtml(c)}">
+        <div class="chk" onclick="toggleMulti('${escapeAttr(c)}')">✓</div>
+        <div class="cat-label" onclick="toggleMulti('${escapeAttr(c)}')">${escapeHtml(c)}</div>
+        <input type="number" class="amt" min="0.01" step="0.01" placeholder="0"
+               value="${st.amount}" oninput="onMultiAmount('${escapeAttr(c)}', this.value)">
+        <span class="unit">₽</span>
+      </div>`;
+  }).join('');
+
+  updateMultiTotal();
+}
+
+function toggleMulti(name) {
+  const st = multiState[name];
+  st.checked = !st.checked;
+  renderMultiList();
+  // фокус на поле ввода, если отмечено
+  if (st.checked) {
+    const row = document.querySelector(`.multi-row[data-cat="${CSS.escape(name)}"]`);
+    if (row) row.querySelector('.amt').focus();
+  }
+}
+
+function onMultiAmount(name, val) {
+  const st = multiState[name];
+  st.amount = val;
+  const row = document.querySelector(`.multi-row[data-cat="${CSS.escape(name)}"]`);
+  if (row) {
+    const num = parseFloat(val);
+    // если ввели сумму, но галочка не стоит — ставим её автоматически
+    if (num > 0 && !st.checked) {
+      st.checked = true;
+      row.classList.add('checked');
+    }
+    if (!(num > 0) && st.checked) {
+      st.checked = false;
+      row.classList.remove('checked');
+    }
+  }
+  updateMultiTotal();
+}
+
+function updateMultiTotal() {
+  let sum = 0;
+  Object.values(multiState).forEach(st => {
+    if (st.checked) {
+      const n = parseFloat(st.amount);
+      if (n > 0) sum += n;
+    }
+  });
+  document.getElementById('multiTotal').textContent = fmt(sum);
+}
+
+// ---------- Менеджер категорий ----------
+function renderCatManager() {
+  const counts = {};
+  expenses.forEach(e => counts[e.category] = (counts[e.category] || 0) + 1);
+
+  document.getElementById('catList').innerHTML = categories.map((c) => `
+    <div class="cat-row" data-cat="${escapeHtml(c)}">
+      <input class="cat-name" type="text" value="${escapeHtml(c)}" maxlength="40"
+             oninput="onCatInput(this)" onkeydown="onCatKey(event, this)">
+      <span class="count" title="Записей с категорией">${counts[c] || 0}</span>
+      <button class="ico-btn save" title="Сохранить" onclick="saveCategory(this)">✔</button>
+      <button class="ico-btn del" title="Удалить категорию"
+              onclick="deleteCategory('${escapeAttr(c)}')">✕</button>
+    </div>`).join('');
+}
+
+function onCatInput(input) {
+  const row = input.closest('.cat-row');
+  row.classList.toggle('changed', input.value.trim() !== row.dataset.cat);
+}
+
+function onCatKey(e, input) {
+  if (e.key === 'Enter') { e.preventDefault(); saveCategory(input); }
+  if (e.key === 'Escape') { input.value = input.closest('.cat-row').dataset.cat; input.closest('.cat-row').classList.remove('changed'); }
+}
+
+function saveCategory(btn) {
+  const row = btn.closest('.cat-row');
+  const input = row.querySelector('.cat-name');
+  const oldName = row.dataset.cat;
+  const newName = input.value.trim();
+
+  if (!newName) { input.value = oldName; row.classList.remove('changed'); return; }
+  if (newName === oldName) { row.classList.remove('changed'); return; }
+  if (categories.some(c => c !== oldName && c.toLowerCase() === newName.toLowerCase())) {
+    alert('Категория с таким названием уже есть.');
+    return;
+  }
+
+  categories = categories.map(c => c === oldName ? newName : c);
+  expenses.forEach(e => { if (e.category === oldName) e.category = newName; });
+
+  // Переносим состояние мультивыбора
+  if (multiState[oldName]) { multiState[newName] = multiState[oldName]; delete multiState[oldName]; }
+
+  const fCat = document.getElementById('filterCat');
+  if (fCat.value === oldName) fCat.value = newName;
+  if (selectedCategory === oldName) selectedCategory = newName;
+
+  saveCats();
+  saveExpenses();
+  populateFilterSelect();
+  renderCatButtons();
+  renderMultiList();
+  renderCatManager();
+  render();
+}
+
+function deleteCategory(name) {
+  const used = expenses.filter(e => e.category === name).length;
+  if (used > 0) {
+    if (!confirm(`В категории "${name}" есть ${used} записей.\nУдалить категорию вместе со всеми этими записями?`)) return;
+    expenses = expenses.filter(e => e.category !== name);
+    saveExpenses();
+  }
+  categories = categories.filter(c => c !== name);
+  if (selectedCategory === name) selectedCategory = categories[0] || '';
+  delete multiState[name];
+
+  saveCats();
+  populateFilterSelect();
+  renderCatButtons();
+  renderMultiList();
+  renderCatManager();
+  render();
+}
+
+document.getElementById('addCatBtn').addEventListener('click', addCategory);
+document.getElementById('newCatName').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addCategory(); } });
+
+function addCategory() {
+  const inp = document.getElementById('newCatName');
+  const name = inp.value.trim();
+  if (!name) return;
+  if (categories.some(c => c.toLowerCase() === name.toLowerCase())) {
+    alert('Такая категория уже есть.');
+    return;
+  }
+  categories.push(name);
+  multiState[name] = { checked: false, amount: '' };
+  if (!selectedCategory) selectedCategory = name;
+  saveCats();
+  populateFilterSelect();
+  renderCatButtons();
+  renderMultiList();
+  renderCatManager();
+  inp.value = '';
+}
+
+// ---------- Добавление расхода ----------
+document.getElementById('expenseForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const date = document.getElementById('date').value;
+  const note = document.getElementById('note').value.trim();
+  if (!date) return;
+
+  let added = 0;
+
+  if (entryMode === 'single') {
+    const cat = document.getElementById('category').value;
+    if (!cat) { alert('Выберите категорию'); return; }
+    const amount = parseFloat(document.getElementById('amount').value);
+    if (!amount || amount <= 0) { alert('Укажите сумму больше нуля'); return; }
+
+    expenses.push({
+      id: Date.now() + Math.random().toString(36).slice(2),
+      amount, category: cat, date, note
+    });
+    added = 1;
+    document.getElementById('amount').value = '';
+  } else {
+    // мультивыбор
+    const entries = [];
+    let errors = [];
+    Object.entries(multiState).forEach(([cat, st]) => {
+      if (!st.checked) return;
+      const n = parseFloat(st.amount);
+      if (!(n > 0)) { errors.push(cat); return; }
+      entries.push({ cat, amount: n });
+    });
+
+    if (errors.length) { alert('Укажите суммы для отмеченных категорий: ' + errors.join(', ')); return; }
+    if (!entries.length) { alert('Отметьте хотя бы одну категорию и укажите сумму'); return; }
+
+    entries.forEach(({cat, amount}) => {
+      expenses.push({
+        id: Date.now() + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2, 6),
+        amount, category: cat, date, note
+      });
+    });
+    added = entries.length;
+
+    // сбрасываем мультивыбор
+    Object.keys(multiState).forEach(c => { multiState[c] = { checked: false, amount: '' }; });
+    renderMultiList();
+  }
+
+  saveExpenses();
+  document.getElementById('note').value = '';
+  document.getElementById('date').value = new Date().toISOString().slice(0, 10);
+  refreshMonthOptions();
+  renderCatManager();
+  render();
+
+  // лёгкий фидбэк
+  const btn = e.target.querySelector('button[type="submit"]');
+  const orig = btn.textContent;
+  btn.textContent = `✓ Добавлено: ${added}`;
+  setTimeout(() => { btn.textContent = orig; }, 1200);
+});
+
+function deleteExpense(id) {
+  expenses = expenses.filter(e => e.id !== id);
+  saveExpenses();
+  refreshMonthOptions();
+  renderCatManager();
+  render();
+}
+
+document.getElementById('filterCat').addEventListener('change', render);
+document.getElementById('filterMonth').addEventListener('change', render);
+
+// ---------- Рендер ----------
+function render() {
+  const catF = document.getElementById('filterCat').value;
+  const monF = document.getElementById('filterMonth').value;
+  const filtered = expenses.filter(e =>
+    (!catF || e.category === catF) && (!monF || monthKey(e.date) === monF)
+  ).sort((a, b) => b.date.localeCompare(a.date));
+
+  document.getElementById('list').innerHTML = filtered.map(e => `
+    <tr>
+      <td>${e.date.split('-').reverse().join('.')}</td>
+      <td><span class="cat-badge">${escapeHtml(e.category)}</span></td>
+      <td style="color:#94a3b8;">${escapeHtml(e.note || '—')}</td>
+      <td class="amount" style="text-align:right;">${fmt(e.amount)}</td>
+      <td style="text-align:right;"><button class="del" onclick="deleteExpense('${e.id}')">✕</button></td>
+    </tr>`).join('');
+  document.getElementById('emptyMsg').style.display = filtered.length ? 'none' : 'block';
+
+  const now = new Date();
+  const curMonth = now.toISOString().slice(0, 7);
+  const today = now.toISOString().slice(0, 10);
+  document.getElementById('monthTotal').textContent =
+    fmt(expenses.filter(e => monthKey(e.date) === curMonth).reduce((s, e) => s + e.amount, 0));
+  document.getElementById('todayTotal').textContent =
+    fmt(expenses.filter(e => e.date === today).reduce((s, e) => s + e.amount, 0));
+  document.getElementById('countTotal').textContent = expenses.length;
+
+  drawCharts();
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function escapeAttr(s) {
+  return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+// ---------- Графики ----------
+const palette = ['#38bdf8','#f472b6','#a78bfa','#34d399','#fbbf24','#fb7185','#60a5fa','#facc15','#2dd4bf','#c084fc'];
+
+function drawCharts() {
+  const byCat = {};
+  expenses.forEach(e => byCat[e.category] = (byCat[e.category] || 0) + e.amount);
+  const catLabels = Object.keys(byCat);
+  const catData = Object.values(byCat);
+
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(document.getElementById('pieChart'), {
+    type: 'doughnut',
+    data: {
+      labels: catLabels.length ? catLabels : ['Нет данных'],
+      datasets: [{
+        data: catData.length ? catData : [1],
+        backgroundColor: catLabels.length ? catLabels.map((_, i) => palette[i % palette.length]) : ['#334155'],
+        borderColor: '#1e293b', borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#cbd5e1', boxWidth: 12, font: { size: 11 } } },
+        tooltip: { callbacks: { label: c => ` ${c.label}: ${fmt(c.parsed)}` } }
+      }
+    }
+  });
+
+  const byMonth = {};
+  expenses.forEach(e => byMonth[monthKey(e.date)] = (byMonth[monthKey(e.date)] || 0) + e.amount);
+  const monthsSorted = Object.keys(byMonth).sort();
+
+  if (barChart) barChart.destroy();
+  barChart = new Chart(document.getElementById('barChart'), {
+    type: 'bar',
+    data: {
+      labels: monthsSorted.length ? monthsSorted.map(monthName) : ['Нет данных'],
+      datasets: [{
+        label: 'Расходы',
+        data: monthsSorted.length ? monthsSorted.map(m => byMonth[m]) : [0],
+        backgroundColor: '#38bdf8', borderRadius: 8
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => ' ' + fmt(c.parsed.y) } }
+      },
+      scales: {
+        x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { display: false } },
+        y: {
+          ticks: { color: '#94a3b8', font: { size: 11 }, callback: v => new Intl.NumberFormat('ru-RU').format(v) },
+          grid: { color: '#33415555' }
+        }
+      }
+    }
+  });
+}
+
+// ================= ЭКСПОРТ / ИМПОРТ TXT =================
+
+document.getElementById('btnExport').addEventListener('click', () => {
+  if (!expenses.length) { alert('Нет данных для экспорта.'); return; }
+  const data = { version: 1, exportedAt: new Date().toISOString(), categories, expenses };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'text/plain;charset=utf-8' });
+  downloadBlob(blob, `expenses_${todayISO()}.txt`);
+});
+
+document.getElementById('btnImport').addEventListener('click', () => {
+  document.getElementById('importFile').click();
+});
+
+document.getElementById('importFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const raw = ev.target.result.replace(/^\uFEFF/, '');
+      const data = JSON.parse(raw);
+      const importedExpenses = Array.isArray(data) ? data : data.expenses;
+      const importedCats = Array.isArray(data) ? null : data.categories;
+      if (!Array.isArray(importedExpenses)) throw new Error('Некорректный формат файла');
+
+      const mode = confirm(
+        `Найдено ${importedExpenses.length} записей.\n\n` +
+        `ОК — заменить текущие данные.\n` +
+        `Отмена — добавить к существующим.`
+      );
+
+      const cleaned = importedExpenses
+        .filter(x => x && typeof x.amount === 'number' && x.date && x.category)
+        .map(x => ({
+          id: x.id || Date.now() + Math.random().toString(36).slice(2),
+          amount: Number(x.amount),
+          category: String(x.category),
+          date: String(x.date),
+          note: String(x.note || '')
+        }));
+
+      if (mode) {
+        expenses = cleaned;
+        categories = Array.isArray(importedCats)
+          ? Array.from(new Set(importedCats.map(String)))
+          : Array.from(new Set(cleaned.map(e => e.category)));
+      } else {
+        const existingIds = new Set(expenses.map(e => e.id));
+        cleaned.forEach(x => { if (!existingIds.has(x.id)) expenses.push(x); });
+        if (Array.isArray(importedCats)) {
+          importedCats.forEach(c => {
+            if (!categories.some(x => x.toLowerCase() === String(c).toLowerCase())) {
+              categories.push(String(c));
+            }
+          });
+        }
+        cleaned.forEach(e => {
+          if (!categories.some(x => x.toLowerCase() === e.category.toLowerCase())) {
+            categories.push(e.category);
+          }
+        });
+      }
+
+      multiState = {};
+      selectedCategory = categories[0] || '';
+      saveExpenses();
+      saveCats();
+      populateFilterSelect();
+      refreshMonthOptions();
+      renderCatButtons();
+      renderMultiList();
+      renderCatManager();
+      render();
+      alert(`Импорт завершён. Записей: ${expenses.length}.`);
+    } catch (err) {
+      alert('Ошибка импорта: ' + err.message);
+    } finally {
+      e.target.value = '';
+    }
+  };
+  reader.readAsText(file, 'utf-8');
+});
+
+// ================= EXCEL =================
+document.getElementById('btnExcel').addEventListener('click', () => {
+  if (!expenses.length) { alert('Нет данных для выгрузки.'); return; }
+
+  const sorted = [...expenses].sort((a, b) => a.date.localeCompare(b.date));
+
+  const rows = sorted.map(e => ({
+    'Дата': e.date, 'Категория': e.category,
+    'Комментарий': e.note || '', 'Сумма (₽)': Number(e.amount)
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows, { header: ['Дата', 'Категория', 'Комментарий', 'Сумма (₽)'] });
+  ws['!cols'] = [{ wch: 12 }, { wch: 22 }, { wch: 32 }, { wch: 14 }];
+
+  const total = sorted.reduce((s, e) => s + e.amount, 0);
+  const startRow = rows.length + 2;
+  XLSX.utils.sheet_add_aoa(ws, [['', '', 'Итого:', total]], { origin: `A${startRow}` });
+  ws[`C${startRow}`].s = { font: { bold: true } };
+  ws[`D${startRow}`].z = '#,##0.00 ₽';
+  ws['!autofilter'] = { ref: `A1:D${rows.length + 1}` };
+
+  const byCat = {};
+  sorted.forEach(e => byCat[e.category] = (byCat[e.category] || 0) + e.amount);
+  const summary = Object.entries(byCat).sort((a, b) => b[1] - a[1])
+    .map(([cat, sum]) => ({ 'Категория': cat, 'Сумма (₽)': Number(sum) }));
+  const ws2 = XLSX.utils.json_to_sheet(summary, { header: ['Категория', 'Сумма (₽)'] });
+  ws2['!cols'] = [{ wch: 24 }, { wch: 14 }];
+
+  const byMonth = {};
+  sorted.forEach(e => byMonth[monthKey(e.date)] = (byMonth[monthKey(e.date)] || 0) + e.amount);
+  const summaryM = Object.entries(byMonth).sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([m, sum]) => ({ 'Месяц': m, 'Сумма (₽)': Number(sum) }));
+  const ws3 = XLSX.utils.json_to_sheet(summaryM, { header: ['Месяц', 'Сумма (₽)'] });
+  ws3['!cols'] = [{ wch: 12 }, { wch: 14 }];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Расходы');
+  XLSX.utils.book_append_sheet(wb, ws2, 'По категориям');
+  XLSX.utils.book_append_sheet(wb, ws3, 'По месяцам');
+  XLSX.writeFile(wb, `expenses_${todayISO()}.xlsx`);
+});
+
+// ---------- Утилиты ----------
+function todayISO() { return new Date().toISOString().slice(0, 10); }
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+}
+
+// ---------- Старт ----------
+populateFilterSelect();
+refreshMonthOptions();
+renderCatButtons();
+renderCatManager();
+setMode('single');
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Заметки</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #f4f5f7;
+    margin: 0;
+    padding: 24px;
+    color: #222;
+    -webkit-text-size-adjust: 100%;
+  }
+  .app { max-width: 780px; margin: 0 auto; }
+
+  /* --- Навигация между приложениями --- */
+  .nav {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 18px;
+    border-radius: 22px;
+    border: 2px solid #ccc;
+    background: #fff;
+    color: #444;
+    font-size: 15px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .nav-link:hover {
+    border-color: #4f8cff;
+    color: #4f8cff;
+    background: #eaf1ff;
+  }
+  .nav-link.active {
+    background: linear-gradient(135deg, #4f8cff, #2563eb);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(79,140,255,.35);
+  }
+  .nav-link.active:hover { color: #fff; background: linear-gradient(135deg, #4f8cff, #2563eb); }
+
+  /* --- Шапка --- */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  h1 { font-size: 24px; margin: 0; }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .io-btn, .trash-btn {
+    padding: 8px 14px;
+    border-radius: 20px;
+    border: 1px solid #ccc;
+    background: #fff;
+    cursor: pointer;
+    font-size: 15px;
+    color: #444;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    white-space: nowrap;
+  }
+  .io-btn:hover { border-color: #4f8cff; color: #4f8cff; }
+  .io-btn.excel:hover { border-color: #22a06b; color: #22a06b; }
+  .trash-btn:hover { border-color: #c33; color: #c33; }
+  .trash-btn .badge {
+    background: #c33;
+    color: #fff;
+    font-size: 12px;
+    border-radius: 10px;
+    padding: 1px 7px;
+    min-width: 20px;
+    text-align: center;
+  }
+  .trash-btn .badge:empty { display: none; }
+
+  /* --- Форма добавления --- */
+  .editor {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+    background: #fff;
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  .editor textarea {
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 15px;
+    outline: none;
+    background: #fff;
+    width: 100%;
+    min-height: 90px;
+    resize: vertical;
+    font-family: inherit;
+    line-height: 1.4;
+  }
+  .editor textarea:focus { border-color: #4f8cff; }
+
+  /* --- Ряд кнопок категорий --- */
+  .cat-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .cat-btn {
+    padding: 8px 14px;
+    border-radius: 20px;
+    border: 2px solid #ccc;
+    background: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    transition: all .15s;
+    user-select: none;
+  }
+  .cat-btn .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .cat-btn:hover { border-color: #999; }
+  .cat-btn.selected { color: #fff; font-weight: 600; }
+
+  .cat-settings-btn {
+    padding: 8px 14px;
+    border-radius: 20px;
+    border: 2px dashed #999;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    color: #555;
+  }
+  .cat-settings-btn:hover { border-color: #4f8cff; color: #4f8cff; }
+
+  /* --- Панель редактирования категорий --- */
+  .cat-editor {
+    display: none;
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  .cat-editor.open { display: block; }
+  .cat-editor h2 { font-size: 16px; margin: 0 0 12px; }
+  .cat-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .cat-row input[type="text"] {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    min-width: 0;
+  }
+  .cat-row input[type="text"]:focus { border-color: #4f8cff; }
+  .cat-row input[type="color"] {
+    width: 44px;
+    height: 38px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 2px;
+    background: #fff;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .cat-row .move-btns {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .cat-row .move-btns button {
+    border: 1px solid #ccc;
+    background: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    color: #555;
+    width: 30px;
+    height: 38px;
+    border-radius: 8px;
+    padding: 0;
+    line-height: 1;
+  }
+  .cat-row .move-btns button:hover:not(:disabled) {
+    border-color: #4f8cff;
+    color: #4f8cff;
+    background: #eaf1ff;
+  }
+  .cat-row .move-btns button:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+  .cat-row button.del-cat {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 16px;
+    color: #c33;
+    padding: 4px 8px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .cat-row button.del-cat:hover { background: #fdecec; }
+  .cat-add {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #eee;
+  }
+  .cat-add input[type="text"] {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    min-width: 0;
+  }
+  .cat-add input[type="color"] {
+    width: 44px;
+    height: 38px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 2px;
+    background: #fff;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .cat-add button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    background: #22a06b;
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .cat-add button:hover { background: #1b8a5a; }
+  .cat-note { font-size: 12px; color: #888; margin-top: 10px; }
+
+  .editor-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .editor-row input[type="date"] {
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 15px;
+    outline: none;
+    background: #fff;
+    flex: 1;
+    min-width: 160px;
+  }
+  .editor-row input[type="date"]:focus { border-color: #4f8cff; }
+  .editor-row button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background: #4f8cff;
+    color: #fff;
+    font-size: 15px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .editor-row button:hover { background: #3a78e6; }
+
+  /* --- Прикрепление файлов --- */
+  .attach-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  .attach-btn {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px dashed #999;
+    background: #fafafa;
+    cursor: pointer;
+    font-size: 14px;
+    color: #555;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all .15s;
+  }
+  .attach-btn:hover { border-color: #4f8cff; color: #4f8cff; background: #eaf1ff; }
+  .attach-preview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .attach-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #eaf1ff;
+    border: 1px solid #c8dbff;
+    color: #2b5ba8;
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 13px;
+  }
+  .attach-chip button {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: #c33;
+    font-size: 14px;
+    padding: 0 2px;
+    line-height: 1;
+  }
+  .attach-chip button:hover { color: #ff0000; }
+
+  /* --- Отображение файлов в заметке --- */
+  .note-attachments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed #eee;
+  }
+  .attachment-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #f4f5f7;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 13px;
+    color: #333;
+    text-decoration: none;
+    transition: background .15s, border-color .15s;
+    max-width: 100%;
+  }
+  .attachment-link:hover {
+    background: #eaf1ff;
+    border-color: #4f8cff;
+    color: #2b5ba8;
+  }
+  .attachment-link span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* --- Фильтр по категориям --- */
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .chip {
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid #ccc;
+    background: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chip.active {
+    border-color: #4f8cff;
+    background: #eaf1ff;
+    font-weight: 600;
+  }
+  .chip .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* --- Список заметок --- */
+  .notes { display: flex; flex-direction: column; gap: 10px; }
+  .note {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: #fff;
+    padding: 12px 14px;
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    border-left: 6px solid #ccc;
+    transition: opacity .15s;
+  }
+  .note .body { flex: 1; min-width: 0; }
+  .note .text {
+    word-break: break-word;
+    cursor: pointer;
+    white-space: pre-wrap;
+    line-height: 1.4;
+  }
+  .note.done { opacity: 0.45; }
+  .note.done .text {
+    text-decoration: line-through;
+    color: #777;
+  }
+  .note .meta {
+    margin-top: 6px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: #666;
+  }
+  .note .meta .cat {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .note .meta .cat .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+  }
+  .note .meta .date.overdue { color: #c33; font-weight: 600; }
+  .note .meta .date.today { color: #d97706; font-weight: 600; }
+  .note button.del {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 16px;
+    color: #c33;
+    padding: 4px 6px;
+    border-radius: 6px;
+    align-self: flex-start;
+  }
+  .note button.del:hover { background: #fdecec; }
+  .empty { color: #888; text-align: center; padding: 20px; }
+
+  /* --- Модалка корзины --- */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.4);
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 16px;
+    z-index: 100;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 14px;
+    width: 100%;
+    max-width: 640px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0,0,0,.25);
+  }
+  .modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #eee;
+  }
+  .modal-head h2 { margin: 0; font-size: 18px; }
+  .modal-close {
+    border: none;
+    background: transparent;
+    font-size: 20px;
+    cursor: pointer;
+    color: #888;
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+  .modal-close:hover { background: #f2f2f2; color: #222; }
+  .modal-body { overflow-y: auto; padding: 12px 20px 20px; }
+  .trash-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .trash-actions button {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    background: #fff;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .trash-actions button.danger { border-color: #c33; color: #c33; }
+  .trash-actions button.danger:hover { background: #fdecec; }
+  .trash-actions button:hover { border-color: #999; }
+
+  .trash-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #fafafa;
+    border-left: 5px solid #ccc;
+    margin-bottom: 8px;
+  }
+  .trash-note .body { flex: 1; min-width: 0; }
+  .trash-note .text { white-space: pre-wrap; line-height: 1.4; word-break: break-word; }
+  .trash-note .meta { margin-top: 5px; font-size: 12px; color: #777; display: flex; gap: 10px; flex-wrap: wrap; }
+  .trash-note button {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .trash-note button.restore { color: #22a06b; }
+  .trash-note button.restore:hover { background: #e8f6ef; }
+  .trash-note button.purge { color: #c33; }
+  .trash-note button.purge:hover { background: #fdecec; }
+  .trash-empty { color: #888; text-align: center; padding: 24px; }
+
+  /* ================= АДАПТАЦИЯ ПОД МОБИЛЬНЫЕ ================= */
+  @media (max-width: 600px) {
+    body { padding: 12px; }
+    h1 { font-size: 20px; }
+    .header { gap: 8px; }
+    .nav { gap: 6px; margin-bottom: 14px; }
+    .nav-link { padding: 8px 14px; font-size: 14px; }
+    
+    .editor { padding: 12px; gap: 8px; }
+    .editor textarea { font-size: 16px; }
+    
+    .editor-row { flex-direction: column; align-items: stretch; }
+    .editor-row input[type="date"],
+    .editor-row button {
+      width: 100%;
+      min-width: 0;
+      flex: none;
+      min-height: 44px;
+    }
+    
+    .cat-row { flex-wrap: wrap; }
+    .cat-row input[type="text"] { width: 100%; flex: 1 1 100%; min-height: 40px; font-size: 16px; }
+    .cat-row input[type="color"], .cat-row .move-btns button { height: 40px; }
+    
+    .cat-add { flex-wrap: wrap; }
+    .cat-add input[type="text"] { flex: 1 1 100%; font-size: 16px; }
+    .cat-add input[type="color"] { width: 100%; height: 44px; }
+    .cat-add button { width: 100%; flex: 1 1 100%; min-height: 44px; }
+
+    .modal-overlay { padding: 20px 10px; align-items: flex-start; }
+    .modal { max-height: 90vh; }
+    .modal-body { padding: 12px 14px 20px; }
+    
+    .note button.del { min-width: 40px; min-height: 40px; font-size: 18px; padding: 8px; }
+    .trash-note button { min-width: 40px; min-height: 40px; font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Навигация между приложениями -->
+  <nav class="nav">
+    <a class="nav-link active" href="index1.html">📝 Мои заметки</a>
+    <a class="nav-link" href="trati.html">💰 Мои траты</a>
+  </nav>
+
+  <div class="header">
+    <h1>Мои заметки</h1>
+    <div class="header-actions">
+      <button class="io-btn" id="exportBtn" title="Сохранить в txt файл">Экспорт 📤</button>
+      <button class="io-btn excel" id="exportExcelBtn" title="Скачать таблицу Excel">В Excel 📊</button>
+      <button class="io-btn" id="importBtn" title="Загрузить из txt файла">Импорт 📥</button>
+      <button class="trash-btn" id="trashBtn">
+        🗑 Корзина <span class="badge" id="trashBadge"></span>
+      </button>
+    </div>
+  </div>
+
+  <input type="file" id="importFileInput" accept=".txt, .json, text/plain" style="display: none;">
+
+  <div class="editor">
+    <textarea id="input" placeholder="Текст заметки... (Ctrl+Enter — добавить)" maxlength="2000"></textarea>
+    <div class="cat-buttons" id="catButtons"></div>
+    
+    <!-- Новая секция для прикрепления файлов -->
+    <div class="attach-row">
+      <button type="button" class="attach-btn" id="attachBtn">📎 Прикрепить файлы</button>
+      <div class="attach-preview" id="attachPreview"></div>
+    </div>
+    <input type="file" id="fileInput" multiple style="display: none;">
+
+    <div class="editor-row">
+      <input id="date" type="date" title="Дата выполнения">
+      <button id="addBtn">Добавить</button>
+    </div>
+  </div>
+
+  <div class="cat-editor" id="catEditor">
+    <h2>Настройка категорий</h2>
+    <div id="catList"></div>
+    <div class="cat-add">
+      <input type="text" id="newCatName" placeholder="Название новой категории" maxlength="30">
+      <input type="color" id="newCatColor" value="#4f8cff">
+      <button id="addCatBtn">Добавить</button>
+    </div>
+    <div class="cat-note">Порядок категорий задаёт приоритет сортировки заметок. Заметки удалённой категории перейдут в первую оставшуюся.</div>
+  </div>
+
+  <div class="filters" id="filters"></div>
+  <div id="notes" class="notes"></div>
+</div>
+
+<!-- Модалка корзины -->
+<div class="modal-overlay" id="trashModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Корзина</h2>
+      <button class="modal-close" id="trashClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="trash-actions">
+        <button class="danger" id="trashClear">Очистить корзину</button>
+      </div>
+      <div id="trashList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const NOTES_KEY = 'notes-app-v7';
+  const CATS_KEY  = 'notes-cats-v7';
+  const TRASH_KEY = 'notes-trash-v7';
+
+  const DEFAULT_CATS = [
+    { id: 'urgent', name: 'Очень срочно', color: '#e11d48' },
+    { id: 'soon',   name: 'Срочно',       color: '#f97316' },
+    { id: 'today',  name: 'На сегодня',   color: '#eab308' },
+    { id: 'later',  name: 'Потом',        color: '#6b7280' },
+  ];
+
+  const input = document.getElementById('input');
+  const dateInput = document.getElementById('date');
+  const addBtn = document.getElementById('addBtn');
+  const notesEl = document.getElementById('notes');
+  const filtersEl = document.getElementById('filters');
+  const catButtonsEl = document.getElementById('catButtons');
+  const catEditor = document.getElementById('catEditor');
+  const catListEl = document.getElementById('catList');
+  const newCatName = document.getElementById('newCatName');
+  const newCatColor = document.getElementById('newCatColor');
+  const addCatBtn = document.getElementById('addCatBtn');
+  const trashBtn = document.getElementById('trashBtn');
+  const trashBadge = document.getElementById('trashBadge');
+  const trashModal = document.getElementById('trashModal');
+  const trashClose = document.getElementById('trashClose');
+  const trashList = document.getElementById('trashList');
+  const trashClear = document.getElementById('trashClear');
+  
+  const exportBtn = document.getElementById('exportBtn');
+  const exportExcelBtn = document.getElementById('exportExcelBtn');
+  const importBtn = document.getElementById('importBtn');
+  const importFileInput = document.getElementById('importFileInput');
+
+  // Элементы для прикрепления файлов
+  const attachBtn = document.getElementById('attachBtn');
+  const fileInput = document.getElementById('fileInput');
+  const attachPreview = document.getElementById('attachPreview');
+
+  let categories = loadCats();
+  let notes = loadNotes();
+  let trash = loadTrash();
+  let activeFilter = 'all';
+  let selectedCat = 'today';
+  let pendingFiles = []; // Массив файлов, ожидающих добавления к новой заметке
+
+  function catById(id) {
+    return categories.find(c => c.id === id)
+      || categories.find(c => c.id === 'later')
+      || categories[categories.length - 1]
+      || { id: 'later', name: 'Потом', color: '#6b7280' };
+  }
+
+  // ---------- утилиты ----------
+  function todayISO() {
+    const d = new Date();
+    const off = d.getTimezoneOffset();
+    return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
+  }
+  function formatDate(iso) {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-');
+    return `${d}.${m}.${y}`;
+  }
+  function dateClass(iso) {
+    if (!iso) return '';
+    const t = todayISO();
+    if (iso < t) return 'overdue';
+    if (iso === t) return 'today';
+    return '';
+  }
+  function uid() {
+    return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+
+  // ---------- загрузка/сохранение ----------
+  function loadCats() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(CATS_KEY));
+      if (Array.isArray(raw) && raw.length) return raw;
+    } catch {}
+    return DEFAULT_CATS.map(c => ({ ...c }));
+  }
+  function saveCats() { localStorage.setItem(CATS_KEY, JSON.stringify(categories)); }
+
+  function loadNotes() {
+    try {
+      const data = JSON.parse(localStorage.getItem(NOTES_KEY)) || [];
+      const today = todayISO();
+      return data.map(n => ({
+        id: n.id ?? Date.now(),
+        text: n.text ?? '',
+        done: !!n.done,
+        category: n.category || 'later',
+        date: n.date || today,
+        files: n.files || [] // Инициализируем массив файлов
+      }));
+    } catch { return []; }
+  }
+  function saveNotes() { localStorage.setItem(NOTES_KEY, JSON.stringify(notes)); }
+
+  function loadTrash() {
+    try { return JSON.parse(localStorage.getItem(TRASH_KEY)) || []; }
+    catch { return []; }
+  }
+  function saveTrash() { localStorage.setItem(TRASH_KEY, JSON.stringify(trash)); }
+
+  // ---------- Экспорт / Импорт ----------
+  function exportToFile() {
+    const data = {
+      categories,
+      notes,
+      trash,
+      version: 'v7',
+      exportedAt: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const dateStr = new Date().toLocaleDateString('ru-RU').replace(/\./g, '-');
+    a.download = `notes-backup-${dateStr}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function exportToExcel() {
+    let html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" 
+            xmlns:x="urn:schemas-microsoft-com:office:excel" 
+            xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          table { border-collapse: collapse; font-family: Arial, sans-serif; font-size: 14px; }
+          th, td { border: 1px solid #999; padding: 6px 12px; text-align: left; }
+          th { background-color: #4f8cff; color: white; font-weight: bold; }
+          .done { color: #888; text-decoration: line-through; }
+          .overdue { color: #c33; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <table>
+          <thead>
+            <tr>
+              <th>Статус</th>
+              <th>Текст заметки</th>
+              <th>Категория</th>
+              <th>Дата выполнения</th>
+              <th>Файлы</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    const sortedNotes = sortNotes(notes);
+
+    sortedNotes.forEach(note => {
+      const cat = catById(note.category);
+      const status = note.done ? 'Выполнено' : 'В процессе';
+      const dateStr = note.date ? formatDate(note.date) : '';
+      const fileNames = (note.files || []).map(f => f.name).join(', ');
+      
+      const escapeHtml = (str) => str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+      
+      html += `
+        <tr>
+          <td class="${note.done ? 'done' : ''}">${status}</td>
+          <td class="${note.done ? 'done' : ''}">${escapeHtml(note.text)}</td>
+          <td>${escapeHtml(cat.name)}</td>
+          <td class="${dateClass(note.date)}">${dateStr}</td>
+          <td>${escapeHtml(fileNames)}</td>
+        </tr>
+      `;
+    });
+
+    html += `
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const dateStr = new Date().toLocaleDateString('ru-RU').replace(/\./g, '-');
+    a.download = `notes-export-${dateStr}.xls`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function importFromFile(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        
+        if (!data || (!Array.isArray(data.notes) && !Array.isArray(data.categories))) {
+          throw new Error('Неверный формат файла (ожидается бэкап заметок).');
+        }
+
+        if (!confirm('Импорт заменит текущие заметки, категории и корзину. Продолжить?')) {
+          return;
+        }
+
+        if (Array.isArray(data.categories) && data.categories.length > 0) {
+          categories = data.categories;
+        } else {
+          categories = DEFAULT_CATS.map(c => ({ ...c }));
+        }
+
+        notes = (Array.isArray(data.notes) ? data.notes : []).map(n => ({
+          id: n.id ?? Date.now() + Math.random(),
+          text: n.text ?? '',
+          done: !!n.done,
+          category: n.category || 'later',
+          date: n.date || todayISO(),
+          files: n.files || []
+        }));
+
+        trash = Array.isArray(data.trash) ? data.trash : [];
+
+        if (!categories.some(c => c.id === selectedCat)) {
+          selectedCat = categories[0] ? categories[0].id : 'today';
+        }
+        if (activeFilter !== 'all' && !categories.some(c => c.id === activeFilter)) {
+          activeFilter = 'all';
+        }
+
+        saveCats(); saveNotes(); saveTrash();
+        renderCatButtons();
+        renderCatEditor();
+        render();
+        renderTrash();
+        
+        alert('Данные успешно импортированы!');
+      } catch (err) {
+        alert('Ошибка при чтении файла: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // ---------- кнопки выбора категории ----------
+  function renderCatButtons() {
+    catButtonsEl.innerHTML = '';
+    if (!categories.some(c => c.id === selectedCat)) {
+      selectedCat = categories[0] ? categories[0].id : 'today';
+    }
+    categories.forEach(c => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      const isSel = selectedCat === c.id;
+      btn.className = 'cat-btn' + (isSel ? ' selected' : '');
+      btn.style.borderColor = c.color;
+      btn.style.background = isSel ? c.color : '#fff';
+      btn.style.color = isSel ? '#fff' : '#444';
+
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      dot.style.background = isSel ? '#fff' : c.color;
+      btn.appendChild(dot);
+      btn.appendChild(document.createTextNode(c.name));
+
+      btn.addEventListener('click', () => {
+        selectedCat = c.id;
+        renderCatButtons();
+      });
+      catButtonsEl.appendChild(btn);
+    });
+
+    const settingsBtn = document.createElement('button');
+    settingsBtn.type = 'button';
+    settingsBtn.className = 'cat-settings-btn';
+    settingsBtn.textContent = '⚙ Настроить';
+    settingsBtn.addEventListener('click', () => catEditor.classList.toggle('open'));
+    catButtonsEl.appendChild(settingsBtn);
+  }
+
+  // ---------- панель редактирования категорий ----------
+  function moveCategory(index, dir) {
+    const j = index + dir;
+    if (j < 0 || j >= categories.length) return;
+    [categories[index], categories[j]] = [categories[j], categories[index]];
+    saveCats();
+    renderCatButtons();
+    renderCatEditor();
+    render();
+    renderTrash();
+  }
+
+  function renderCatEditor() {
+    catListEl.innerHTML = '';
+    categories.forEach((c, i) => {
+      const row = document.createElement('div');
+      row.className = 'cat-row';
+
+      const name = document.createElement('input');
+      name.type = 'text';
+      name.value = c.name;
+      name.maxLength = 30;
+      name.addEventListener('input', () => {
+        c.name = name.value;
+        saveCats();
+        renderCatButtons();
+        render();
+      });
+
+      const color = document.createElement('input');
+      color.type = 'color';
+      color.value = c.color;
+      color.addEventListener('input', () => {
+        c.color = color.value;
+        saveCats();
+        renderCatButtons();
+        render();
+      });
+
+      const moveWrap = document.createElement('div');
+      moveWrap.className = 'move-btns';
+
+      const up = document.createElement('button');
+      up.type = 'button';
+      up.textContent = '↑';
+      up.title = 'Поднять выше';
+      up.disabled = i === 0;
+      up.addEventListener('click', () => moveCategory(i, -1));
+
+      const down = document.createElement('button');
+      down.type = 'button';
+      down.textContent = '↓';
+      down.title = 'Опустить ниже';
+      down.disabled = i === categories.length - 1;
+      down.addEventListener('click', () => moveCategory(i, 1));
+
+      moveWrap.appendChild(up);
+      moveWrap.appendChild(down);
+
+      const del = document.createElement('button');
+      del.className = 'del-cat';
+      del.textContent = '✕';
+      del.title = 'Удалить категорию';
+      del.addEventListener('click', () => {
+        if (categories.length <= 1) {
+          alert('Должна остаться хотя бы одна категория.');
+          return;
+        }
+        const fallback = categories.find(x => x.id !== c.id);
+        if (!confirm(`Удалить категорию «${c.name}»? Её заметки перейдут в «${fallback.name}».`)) return;
+
+        notes.forEach(n => { if (n.category === c.id) n.category = fallback.id; });
+        trash.forEach(n => { if (n.category === c.id) n.category = fallback.id; });
+        categories = categories.filter(x => x.id !== c.id);
+        if (selectedCat === c.id) selectedCat = fallback.id;
+        if (activeFilter === c.id) activeFilter = 'all';
+        saveNotes(); saveTrash(); saveCats();
+        renderCatButtons();
+        renderCatEditor();
+        render();
+        renderTrash();
+      });
+
+      row.appendChild(name);
+      row.appendChild(color);
+      row.appendChild(moveWrap);
+      row.appendChild(del);
+      catListEl.appendChild(row);
+    });
+  }
+
+  function addCategory() {
+    const name = newCatName.value.trim();
+    if (!name) return;
+    categories.push({ id: uid(), name, color: newCatColor.value });
+    newCatName.value = '';
+    saveCats();
+    renderCatButtons();
+    renderCatEditor();
+    render();
+  }
+
+  // ---------- Работа с файлами ----------
+  function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  function renderPendingFiles() {
+    attachPreview.innerHTML = '';
+    pendingFiles.forEach((file, idx) => {
+      const chip = document.createElement('span');
+      chip.className = 'attach-chip';
+      
+      const name = document.createElement('span');
+      name.textContent = file.name + ' (' + formatFileSize(file.size) + ')';
+      
+      const removeBtn = document.createElement('button');
+      removeBtn.textContent = '✕';
+      removeBtn.title = 'Убрать файл';
+      removeBtn.addEventListener('click', () => {
+        pendingFiles.splice(idx, 1);
+        renderPendingFiles();
+      });
+      
+      chip.appendChild(name);
+      chip.appendChild(removeBtn);
+      attachPreview.appendChild(chip);
+    });
+  }
+
+  function processFiles(files) {
+    const MAX_SIZE = 2 * 1024 * 1024; // 2 МБ на файл
+    const MAX_TOTAL = 4 * 1024 * 1024; // 4 МБ на заметку
+    
+    let currentTotal = pendingFiles.reduce((sum, f) => sum + f.size, 0);
+
+    for (let file of files) {
+      if (file.size > MAX_SIZE) {
+        alert(`Файл "${file.name}" слишком большой (макс. 2 МБ).`);
+        continue;
+      }
+      if (currentTotal + file.size > MAX_TOTAL) {
+        alert(`Суммарный размер файлов для одной заметки не должен превышать 4 МБ.`);
+        break;
+      }
+
+      // Читаем файл в Base64
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        pendingFiles.push({
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          data: e.target.result // Base64
+        });
+        renderPendingFiles();
+      };
+      reader.readAsDataURL(file);
+      currentTotal += file.size;
+    }
+  }
+
+  // ---------- действия с заметками ----------
+  function addNote() {
+    const text = input.value.trim();
+    if (!text) return;
+    notes.push({
+      id: Date.now(),
+      text,
+      done: false,
+      category: selectedCat,
+      date: dateInput.value || todayISO(),
+      files: [...pendingFiles]
+    });
+    
+    input.value = '';
+    dateInput.value = todayISO();
+    pendingFiles = [];
+    renderPendingFiles();
+    
+    saveNotes();
+    render();
+    input.focus();
+  }
+  function toggleNote(id) {
+    const n = notes.find(x => x.id === id);
+    if (n) { n.done = !n.done; saveNotes(); render(); }
+  }
+  function deleteNote(id) {
+    const idx = notes.findIndex(n => n.id === id);
+    if (idx === -1) return;
+    const [removed] = notes.splice(idx, 1);
+    trash.unshift({ ...removed, deletedAt: Date.now() });
+    saveNotes(); saveTrash();
+    render(); renderTrash();
+  }
+
+  // ---------- сортировка ----------
+  function priorityOf(catId) {
+    const i = categories.findIndex(c => c.id === catId);
+    return i === -1 ? 99 : i;
+  }
+  function sortNotes(list) {
+    return [...list].sort((a, b) => {
+      if (a.done !== b.done) return a.done ? 1 : -1;
+      const pa = priorityOf(a.category);
+      const pb = priorityOf(b.category);
+      if (pa !== pb) return pa - pb;
+      if (a.date && b.date) {
+        if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+      } else if (a.date) return -1;
+      else if (b.date) return 1;
+      return b.id - a.id;
+    });
+  }
+
+  // ---------- фильтры ----------
+  function renderFilters() {
+    filtersEl.innerHTML = '';
+    const mkChip = (label, value, color) => {
+      const el = document.createElement('span');
+      el.className = 'chip' + (activeFilter === value ? ' active' : '');
+      if (color) {
+        const dot = document.createElement('span');
+        dot.className = 'dot';
+        dot.style.background = color;
+        el.appendChild(dot);
+      }
+      el.appendChild(document.createTextNode(label));
+      el.addEventListener('click', () => { activeFilter = value; render(); });
+      return el;
+    };
+    filtersEl.appendChild(mkChip('Все', 'all', null));
+    categories.forEach(c => filtersEl.appendChild(mkChip(c.name, c.id, c.color)));
+
+    if (activeFilter !== 'all' && !categories.some(c => c.id === activeFilter)) {
+      activeFilter = 'all';
+    }
+  }
+
+  // ---------- рендер заметок ----------
+  function render() {
+    renderFilters();
+    notesEl.innerHTML = '';
+
+    const visible = sortNotes(
+      activeFilter === 'all' ? notes : notes.filter(n => n.category === activeFilter)
+    );
+
+    if (visible.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = notes.length === 0
+        ? 'Пока нет заметок. Добавьте первую!'
+        : 'В этой категории пусто.';
+      notesEl.appendChild(empty);
+      return;
+    }
+
+    visible.forEach(note => {
+      const cat = catById(note.category);
+
+      const el = document.createElement('div');
+      el.className = 'note' + (note.done ? ' done' : '');
+      el.style.borderLeftColor = cat.color;
+
+      const body = document.createElement('div');
+      body.className = 'body';
+
+      const text = document.createElement('div');
+      text.className = 'text';
+      text.textContent = note.text;
+      text.title = 'Нажмите, чтобы отметить выполненной';
+      text.addEventListener('click', () => toggleNote(note.id));
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+
+      const catEl = document.createElement('span');
+      catEl.className = 'cat';
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      dot.style.background = cat.color;
+      catEl.appendChild(dot);
+      catEl.appendChild(document.createTextNode(cat.name));
+      meta.appendChild(catEl);
+
+      if (note.date) {
+        const dateEl = document.createElement('span');
+        dateEl.className = 'date ' + dateClass(note.date);
+        dateEl.textContent = '📅 ' + formatDate(note.date);
+        meta.appendChild(dateEl);
+      }
+
+      body.appendChild(text);
+      body.appendChild(meta);
+
+      // Блок прикреплённых файлов
+      if (note.files && note.files.length > 0) {
+        const filesDiv = document.createElement('div');
+        filesDiv.className = 'note-attachments';
+        
+        note.files.forEach(file => {
+          const link = document.createElement('a');
+          link.className = 'attachment-link';
+          link.href = file.data;
+          link.download = file.name;
+          link.title = 'Скачать ' + file.name;
+          
+          const icon = document.createElement('span');
+          icon.textContent = '📄';
+          
+          const nameSpan = document.createElement('span');
+          nameSpan.textContent = file.name + ' (' + formatFileSize(file.size) + ')';
+          
+          link.appendChild(icon);
+          link.appendChild(nameSpan);
+          filesDiv.appendChild(link);
+        });
+        body.appendChild(filesDiv);
+      }
+
+      const del = document.createElement('button');
+      del.className = 'del';
+      del.textContent = '✕';
+      del.title = 'В корзину';
+      del.addEventListener('click', () => deleteNote(note.id));
+
+      el.appendChild(body);
+      el.appendChild(del);
+      notesEl.appendChild(el);
+    });
+  }
+
+  // ---------- корзина ----------
+  function renderTrash() {
+    trashBadge.textContent = trash.length ? String(trash.length) : '';
+    trashList.innerHTML = '';
+
+    if (trash.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'trash-empty';
+      empty.textContent = 'Корзина пуста.';
+      trashList.appendChild(empty);
+      return;
+    }
+
+    trash.forEach(note => {
+      const cat = catById(note.category);
+      const el = document.createElement('div');
+      el.className = 'trash-note';
+      el.style.borderLeftColor = cat.color;
+
+      const body = document.createElement('div');
+      body.className = 'body';
+
+      const text = document.createElement('div');
+      text.className = 'text';
+      text.textContent = note.text;
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const catEl = document.createElement('span');
+      catEl.textContent = '● ' + cat.name;
+      catEl.style.color = cat.color;
+      meta.appendChild(catEl);
+      
+      if (note.date) {
+        const d = document.createElement('span');
+        d.textContent = '📅 ' + formatDate(note.date);
+        meta.appendChild(d);
+      }
+      if (note.deletedAt) {
+        const d = document.createElement('span');
+        const dt = new Date(note.deletedAt);
+        d.textContent = 'удалено ' + dt.toLocaleString('ru-RU', {
+          day: '2-digit', month: '2-digit', year: 'numeric',
+          hour: '2-digit', minute: '2-digit'
+        });
+        meta.appendChild(d);
+      }
+
+      body.appendChild(text);
+      
+      if (note.files && note.files.length > 0) {
+        const fCount = document.createElement('div');
+        fCount.style.fontSize = '12px';
+        fCount.style.color = '#888';
+        fCount.style.marginTop = '4px';
+        fCount.textContent = '📎 Файлов: ' + note.files.length;
+        body.appendChild(fCount);
+      }
+
+      body.appendChild(meta);
+
+      const restore = document.createElement('button');
+      restore.className = 'restore';
+      restore.textContent = '↩';
+      restore.title = 'Восстановить';
+      restore.addEventListener('click', () => {
+        const idx = trash.findIndex(n => n.id === note.id);
+        if (idx === -1) return;
+        const [item] = trash.splice(idx, 1);
+        const { deletedAt, ...rest } = item;
+        notes.push(rest);
+        saveTrash(); saveNotes();
+        render(); renderTrash();
+      });
+
+      const purge = document.createElement('button');
+      purge.className = 'purge';
+      purge.textContent = '✕';
+      purge.title = 'Удалить навсегда';
+      purge.addEventListener('click', () => {
+        trash = trash.filter(n => n.id !== note.id);
+        saveTrash(); renderTrash();
+      });
+
+      el.appendChild(body);
+      el.appendChild(restore);
+      el.appendChild(purge);
+      trashList.appendChild(el);
+    });
+  }
+
+  function openTrash() { trashModal.classList.add('open'); renderTrash(); }
+  function closeTrash() { trashModal.classList.remove('open'); }
+
+  // ---------- инициализация ----------
+  function init() {
+    renderCatButtons();
+    renderCatEditor();
+    dateInput.value = todayISO();
+    render();
+    renderTrash();
+  }
+
+  // Обработчики событий
+  addBtn.addEventListener('click', addNote);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      addNote();
+    }
+  });
+  addCatBtn.addEventListener('click', addCategory);
+  newCatName.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); addCategory(); }
+  });
+
+  trashBtn.addEventListener('click', openTrash);
+  trashClose.addEventListener('click', closeTrash);
+  trashModal.addEventListener('click', e => {
+    if (e.target === trashModal) closeTrash();
+  });
+  trashClear.addEventListener('click', () => {
+    if (trash.length === 0) return;
+    if (!confirm('Очистить корзину полностью? Это действие необратимо.')) return;
+    trash = [];
+    saveTrash(); renderTrash();
+  });
+
+  // Экспорт/Импорт
+  exportBtn.addEventListener('click', exportToFile);
+  exportExcelBtn.addEventListener('click', exportToExcel);
+  
+  importBtn.addEventListener('click', () => {
+    importFileInput.click();
+  });
+
+  importFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      importFromFile(file);
+      importFileInput.value = '';
+    }
+  });
+
+  // Прикрепление файлов
+  attachBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+      processFiles(e.target.files);
+      fileInput.value = ''; // Очищаем инпут
+    }
+  });
+
+  init();
+</script>
+</body>
+</html>
